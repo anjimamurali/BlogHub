@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog API Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        input[type="text"], input[type="password"], input[type="email"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <h1>Blog API Tester</h1>
+    
+    <div class="section">
+        <h2>1. Test Root Endpoint</h2>
+        <button onclick="testRoot()">Test Root</button>
+        <pre id="rootResult">Click the button to test</pre>
+    </div>
+    
+    <div class="section">
+        <h2>2. Register a New User</h2>
+        <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" value="testuser">
+            
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="test@example.com">
+            
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="password123">
+            
+            <button onclick="registerUser()">Register</button>
+        </div>
+        <pre id="registerResult">Fill the form and click Register</pre>
+    </div>
+    
+    <div class="section">
+        <h2>3. Login</h2>
+        <div>
+            <label for="loginEmail">Email:</label>
+            <input type="email" id="loginEmail" value="test@example.com">
+            
+            <label for="loginPassword">Password:</label>
+            <input type="password" id="loginPassword" value="password123">
+            
+            <button onclick="login()">Login</button>
+        </div>
+        <pre id="loginResult">Fill the form and click Login</pre>
+    </div>
+    
+    <div class="section">
+        <h2>4. Create a Post (requires login)</h2>
+        <div>
+            <label for="postTitle">Title:</label>
+            <input type="text" id="postTitle" value="My First Post">
+            
+            <label for="postContent">Content:</label>
+            <input type="text" id="postContent" value="This is the content of my first post">
+            
+            <button onclick="createPost()">Create Post</button>
+        </div>
+        <pre id="createPostResult">Login first, then create a post</pre>
+    </div>
+    
+    <div class="section">
+        <h2>5. Get All Posts (requires login)</h2>
+        <button onclick="getPosts()">Get Posts</button>
+        <pre id="postsResult">Login first, then click to get posts</pre>
+    </div>
+    
+    <script>
+        let token = localStorage.getItem('token');
+        
+        function displayResult(elementId, data) {
+            const resultElement = document.getElementById(elementId);
+            resultElement.textContent = JSON.stringify(data, null, 2);
+        }
+        
+        async function testRoot() {
+            try {
+                const response = await fetch('http://localhost:5000/');
+                const data = await response.json();
+                displayResult('rootResult', {
+                    status: response.status,
+                    data: data
+                });
+            } catch (error) {
+                displayResult('rootResult', {
+                    error: error.message
+                });
+            }
+        }
+        
+        async function registerUser() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username,
+                        email,
+                        password
+                    })
+                });
+                
+                const data = await response.json();
+                displayResult('registerResult', {
+                    status: response.status,
+                    data: data
+                });
+            } catch (error) {
+                displayResult('registerResult', {
+                    error: error.message
+                });
+            }
+        }
+        
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.token) {
+                    token = data.token;
+                    localStorage.setItem('token', token);
+                }
+                
+                displayResult('loginResult', {
+                    status: response.status,
+                    data: data
+                });
+            } catch (error) {
+                displayResult('loginResult', {
+                    error: error.message
+                });
+            }
+        }
+        
+        async function createPost() {
+            if (!token) {
+                displayResult('createPostResult', {
+                    error: 'Please login first'
+                });
+                return;
+            }
+            
+            const title = document.getElementById('postTitle').value;
+            const content = document.getElementById('postContent').value;
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/posts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-access-token': token
+                    },
+                    body: JSON.stringify({
+                        title,
+                        content
+                    })
+                });
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = { message: 'No JSON response' };
+                }
+                
+                displayResult('createPostResult', {
+                    status: response.status,
+                    data: data
+                });
+            } catch (error) {
+                displayResult('createPostResult', {
+                    error: error.message
+                });
+            }
+        }
+        
+        async function getPosts() {
+            if (!token) {
+                displayResult('postsResult', {
+                    error: 'Please login first'
+                });
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/posts', {
+                    headers: {
+                        'x-access-token': token
+                    }
+                });
+                
+                const data = await response.json();
+                displayResult('postsResult', {
+                    status: response.status,
+                    data: data
+                });
+            } catch (error) {
+                displayResult('postsResult', {
+                    error: error.message
+                });
+            }
+        }
+        
+        // Check if user is already logged in
+        if (token) {
+            document.getElementById('loginResult').textContent = 'Already logged in';
+        }
+    </script>
+</body>
+</html>
